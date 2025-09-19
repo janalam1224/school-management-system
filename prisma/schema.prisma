@@ -9,16 +9,43 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  principal
-}
-
 model User {
   id        Int      @id @default(autoincrement())
   name      String
   email     String   @unique
-  role      Role
   password  String
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
+}
+
+model Class {
+  id       Int       @id @default(autoincrement())
+  name     String
+  section  String?
+  subjects Subject[]
+  students Student[]
+}
+
+model Subject {
+  id        Int     @id @default(autoincrement())
+  name      String
+  class     Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  classId   Int
+  teacher   Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  teacherId Int
+}
+
+model Teacher {
+  id       Int       @id @default(autoincrement())
+  name     String
+  email    String    @unique
+  subjects Subject[]
+}
+
+model Student {
+  id      Int    @id @default(autoincrement())
+  name    String
+  address String
+  class   Class  @relation(fields: [classId], references: [id], onDelete: Cascade)
+  classId Int
 }
