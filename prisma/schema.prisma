@@ -19,33 +19,44 @@ model Principal {
 }
 
 model Class {
-  id       Int       @id @default(autoincrement())
-  name     String
-  section  String?
-  subjects Subject[]
-  students Student[]
+  id                    Int                   @id @default(autoincrement())
+  name                  String                @unique
+  section               String?
+  students              Student[]
+  teacherSubjectClasses TeacherSubjectClass[]
 }
 
 model Subject {
-  id        Int     @id @default(autoincrement())
-  name      String
-  class     Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
-  classId   Int
-  teacher   Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  teacherId Int
+  id                    Int                   @id @default(autoincrement())
+  name                  String
+  code                  String                @unique
+  teacherSubjectClasses TeacherSubjectClass[]
 }
 
 model Teacher {
-  id       Int       @id @default(autoincrement())
-  name     String
-  email    String    @unique
-  subjects Subject[]
+  id                    Int                   @id @default(autoincrement())
+  name                  String
+  email                 String                @unique
+  teacherSubjectClasses TeacherSubjectClass[]
+}
+
+model TeacherSubjectClass {
+  id        Int     @id @default(autoincrement())
+  teacherId Int
+  classId   Int
+  subjectId Int
+  teacher   Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  class     Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, subjectId, classId])
 }
 
 model Student {
-  id      Int    @id @default(autoincrement())
+  id      Int     @id @default(autoincrement())
   name    String
   address String
-  class   Class  @relation(fields: [classId], references: [id], onDelete: Cascade)
+  image   String?
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
   classId Int
 }
