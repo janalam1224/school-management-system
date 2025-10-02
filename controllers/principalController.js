@@ -1,27 +1,25 @@
 import prisma from "../config/db_config.js"
 import bcrypt from 'bcrypt';
+import apiError from "../utils/apiError.js";
+import apiResponse from "../utils/apiResponse.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 
-export const getUsers = async(req, res) => {
- try {
+export const getUsers = asyncHandler(async(req, res) => {
   const users = await prisma.principal.findMany();
   if(users.length === 0){
-    return res.status(404).json({ message:"No user found" });
+    throw new apiError(404, "No user found");
   }
-  return res.status(200).json({ users });
- } catch (error) {
-  console.log("Error while fetching users", error);
-  res.status(500).json({ message: "Internal server error" });
- }
-}
+  return res.status(200).json(new apiResponse(200, users ));
+});
 
-export const createUser = async(req, res) => {
+export const createUser = asyncHandler(async(req, res) => {
   const { name, email, password } = req.body;
-  try {
-    const principal = await prisma.principal.findUnique({
+
+    const existing = await prisma.principal.findUnique({
       where: { email }
     });
-    if(principal){
-      return res.status(409).json({ message: "Principal already exists" });
+    if(existing){
+      throw new apiError(409, "Principal already exists");
     }
     const hashPassword = await bcrypt.hash(password, 12); 
     const newPrincipal = await prisma.principal.create({
@@ -31,38 +29,30 @@ export const createUser = async(req, res) => {
         password:hashPassword,
       }
     });
-    return res.status(201).json({ message:"Principal created successfully", newPrincipal });
-  } catch (error) {
-    console.log("Error while creating new user", error);
-    res.status(500).json({ message: "Internal server error"});
-  } 
-}
+    return res.status(201).json(new apiResponse(201,"Principal created successfully", newPrincipal));
+});
 
-export const findUser = async(req, res) => {
+export const findUser = asyncHandler(async(req, res) => {
   const principalId = Number(req.params.id);
-  try {
+
     const principal = await prisma.principal.findUnique({
       where: { id: principalId}
     });
     if(!principal){
-      return res.status(404).json({ message: "User not found" });
+      throw new apiError(404, "User not found");
     }
-    return res.status(200).json({ principal });
-  } catch (error) {
-    console.log("Error while finding principal by id", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-}
+    return res.status(200).json(new apiResponse(200, principal));
+});
 
-export const editUser = async(req, res) => {
+export const editUser = asyncHandler(async(req, res) => {
   const principalId = Number(req.params.id);
   const { name, email, password } = req.body;
-  try {
+  
     const existing = await prisma.principal.findUnique({
       where: { id: principalId}
     });
     if(!existing){
-      return res.status(404).json({ message: "Principal not found" });
+      throw new apiError(404, "Principal not found");
     }
      
     const hashPassword = await bcrypt.hash(password, 12);
@@ -76,32 +66,20 @@ export const editUser = async(req, res) => {
       }
     });
 
-    return res.status(200).json({ message: "Principal updated successfully" });
+    return res.status(200).json(new apiResponse(200,"Principal updated successfully"));
+});
 
-  } catch (error) {
-    console.log("Error while updating principal", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-}
-
-export const deleteUser = async(req, res) => {
+export const deleteUser = asyncHandler(async(req, res) => {
   const principalId = Number(req.params.id);
-  try {
+
     const principal = await prisma.principal.findUnique({
       where: { id: principalId}
     });
     if(!principal){
-      return res.status(404).json({ message: "Principal not found" });
+      throw new apiError(404, "Principal not found");
     }
     
-    const deletePrincipal = await prisma.principal.delete({
-      where: { id: principalId }
-    });
+      await prisma.principal.delete({ where: { id: principalId }});
 
-    return res.status(204).json();
-
-  } catch (error) {
-    console.log("Error while deleting principal", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-}
+    return res.status(204).send();
+});
