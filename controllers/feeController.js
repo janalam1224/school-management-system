@@ -7,8 +7,12 @@ export const getFees = asyncHandler(async(req, res) => {
 
 });
 
-export const createFees = asyncHandler(async(req, res) => {
+export const createFee = asyncHandler(async(req, res) => {
   const { amount, dueDate, status, paidAmount, paymentDate, studentId} = req.body;
+
+  const parsedDueDate = new Date(dueDate);
+  const parsedPaymentDate = paymentDate ? new Date(paymentDate) : null;
+
   const existing = await prisma.fee.findFirst({
    where: { studentId }
   });
@@ -20,9 +24,10 @@ export const createFees = asyncHandler(async(req, res) => {
   const newFee = await prisma.fee.create({
     data:{
       amount,
-      dueDate,
+      dueDate: parsedDueDate,
       status,
       paidAmount,
+      paymentDate: parsedPaymentDate,
       studentId,
     }
   });
