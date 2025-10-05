@@ -1,12 +1,12 @@
 import { Router } from "express";
 import { 
   getFees,
-  createFees,
+  createFee,
  } from "../controllers/feeController.js";
 
 const router = Router();
 
-router.get("/", getFees);
-router.post("/", createFee);
+router.get("/fee", getFees);
+router.post("/fee", createFee);
 
 export default router;
