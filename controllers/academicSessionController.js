@@ -2,6 +2,7 @@ import prisma from "../config/db_config.js";
 import apiError from "../utils/apiError.js";
 import apiResponse from "../utils/apiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { createSessionSchema, updateSessionSchema } from "../schemas/schemas.js";
 
 // ======= Get All Sessions =====================
 export const getSessions = asyncHandler(async (req, res) => {
@@ -18,11 +19,16 @@ export const getSessions = asyncHandler(async (req, res) => {
 // ======= Create New Session =====================
 export const createSession = asyncHandler(async (req, res) => {
 
-  const { name, startDate, endDate } = req.body;
+ const validation = createSessionSchema.safeParse(req.body);
 
-  const parsedStartDate = new Date(startDate);
+ if(!validation.success){
+  return res.status(400).json({
+    message:"Validation error",
+    errors:validation.error.issues,
+  });
+ }
 
-  const parsedEndDate = new Date(endDate);
+  const { name, startDate, endDate } = validation.data;
 
   const existing = await prisma.academicSession.findUnique({
     where: { name },
@@ -35,8 +41,8 @@ export const createSession = asyncHandler(async (req, res) => {
   const newSession = await prisma.academicSession.create({
     data: {
       name,
-      startDate: parsedStartDate,
-      endDate: parsedEndDate,
+      startDate,
+      endDate,
     },
   });
 
@@ -62,36 +68,67 @@ export const findSession = asyncHandler(async(req, res) => {
 });
 
 // ======= Edit Session =====================
-export const editSession = asyncHandler(async(req, res) => {
-
+export const editSession = asyncHandler(async (req, res) => {
   const sessionId = Number(req.params.id);
 
-  if(isNaN(sessionId)) throw new apiError(400, "Invalid session ID");
-
-  const { name, startDate, endDate } = req.body;
-
-  const parsedStartDate = startDate ? new Date(startDate) : null;
-
-  const parsedEndDate = endDate ? new Date(endDate) : null;
-
-  const session = await prisma.academicSession.findUnique({
-    where:{ id: sessionId }
-  });
-   
-  if(!session){
-    throw new apiError(404, "Session not found");
+  if (isNaN(sessionId)) {
+    throw new apiError(400, "Invalid session ID");
   }
 
-  const updateSession = await prisma.academicSession.update({
-    where:{ id: sessionId },
-    data:{
-        name,
-        startDate:parsedStartDate,
-        endDate:parsedEndDate,
-    }
+  const validation = updateSessionSchema.safeParse(req.body);
+
+  if (!validation.success) {
+    return res.status(400).json({
+      message: "Validation error",
+      errors: validation.error.issues,
+    });
+  }
+
+  const session = await prisma.academicSession.findUnique({
+    where: { id: sessionId },
   });
 
-  return res.status(200).json(new apiResponse(200, "Session updated successfully", updateSession));
+  if (!session) {
+    throw new apiError(404, "Session not found");
+  }
+  
+  // Merge existing + new data (because updateSessionSchema is partial)
+  const payload = {
+    name: validation.data.name ?? session.name,
+    startDate: validation.data.startDate ?? session.startDate,
+    endDate: validation.data.endDate ?? session.endDate,
+  };
+
+  const parsedStartDate = new Date(payload.startDate);
+  const parsedEndDate = new Date(payload.endDate);
+
+  if (isNaN(parsedStartDate) || isNaN(parsedEndDate)) {
+    throw new apiError(400, "Invalid date format");
+  }
+
+  const nameExists = await prisma.academicSession.findFirst({
+    where: {
+      name: payload.name,
+      id: { not: sessionId },
+    },
+  });
+
+  if (nameExists) {
+    throw new apiError(409, "Another session with this name already exists");
+  }
+
+  const updatedSession = await prisma.academicSession.update({
+    where: { id: sessionId },
+    data: {
+      name: payload.name,
+      startDate: parsedStartDate,
+      endDate: parsedEndDate,
+    },
+  });
+
+  return res
+    .status(200)
+    .json(new apiResponse(200, "Session updated successfully", updatedSession));
 });
 
 // ======= Delete Session =====================
